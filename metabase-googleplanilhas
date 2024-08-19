@@ -1,0 +1,52 @@
+function AtualizarPedidos1() {
+  var metabaseUrl = 'https://metabase.seudominio.com';
+  var queryId = 'your-query-id';
+  var metabaseUsername = 'your-username';
+  var metabasePassword = 'your-password';
+
+  var spreadsheetId = 'google-sheets-ID';
+  var sheetName = 'PGN01';
+  var metabaseLoginEndpoint = metabaseUrl + '/api/session';
+  var payload = {
+    username: metabaseUsername,
+    password: metabasePassword
+  };
+  var headersLoginMetabase = {
+    'Content-Type': 'application/json'
+  };
+
+  var responseLoginMetabase = UrlFetchApp.fetch(metabaseLoginEndpoint, {
+    method: 'post',
+    headers: headersLoginMetabase,
+    payload: JSON.stringify(payload)
+  });
+
+  var sessionToken = JSON.parse(responseLoginMetabase.getContentText()).id;
+
+  var metabaseQueryEndpoint = metabaseUrl + '/api/card/' + queryId + '/query/json';
+  var headersMetabase = {
+    'Content-Type':'application/json',
+    'X-Metabase-Session': sessionToken
+  };
+
+  var responseMetabase = UrlFetchApp.fetch(metabaseQueryEndpoint, {
+    method: 'post',
+    headers: headersMetabase
+  });
+
+  var sheet = SpreadsheetApp.openById(spreadsheetId).getSheetByName(sheetName);
+
+  sheet.clear();
+
+  var responseBody = JSON.parse(responseMetabase.getContentText());
+
+  if (responseBody.length > 0) {
+    var headerRow = Object.keys(responseBody[0]);
+    var values = [headerRow].concat(responseBody.map(obj => headerRow.map(key => obj[key])));
+    
+    sheet.getRange(1, 1, values.length, values[0].length).setValues(values);
+    Logger.log('Resultados da query do Metabase adicionados à planilha.');
+  } else {
+    Logger.log('A query do Metabase não retornou resultados.');
+  }
+}
